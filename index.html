@@ -172,7 +172,7 @@
         document.querySelectorAll('.category-item').forEach(el => el.classList.remove('active'));
         element.classList.add('active');
         
-        const categoryNames = {all: 'すべて', shopping: '買物', todo: 'ToDo', schedule: 'スケジュール'};
+        const categoryNames = {diy: 'DIY', shopping: '買物', todo: 'ToDo', schedule: 'スケジュール',all: 'すべて'};
         document.getElementById('editorTitle').innerHTML = `📝 メモを作成 <span>(${categoryNames[category]})</span>`;
         
         loadNotes();

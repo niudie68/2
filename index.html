@@ -2,34 +2,204 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>マイ・ダッシュボード</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes - Apple Style</title>
     <style>
-        body { font-family: sans-serif; line-height: 1.6; padding: 20px; background: #f4f4f4; }
-        .card { background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h2 { color: #333; font-size: 1.2em; border-left: 4px solid #007bff; padding-left: 10px; }
-        .value { font-weight: bold; font-size: 1.5em; color: #d9534f; }
+        :root {
+            --apple-bg: #f5f5f7;
+            --apple-yellow: #ffb300;
+            --apple-gray: #86868b;
+            --apple-border: #d2d2d7;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--apple-bg);
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px;
+            margin: 0;
+            color: #1d1d1f;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        /* Apple風のカードデザイン */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 18px;
+            padding: 24px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 入力エリア */
+        textarea {
+            width: 100%;
+            height: 100px;
+            border: none;
+            background: transparent;
+            font-size: 16px;
+            resize: none;
+            outline: none;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--apple-border);
+        }
+
+        .btn-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 15px;
+        }
+
+        button {
+            background-color: var(--apple-yellow);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:hover { opacity: 0.8; }
+        
+        button.delete-btn {
+            background-color: #ff3b30;
+            margin-left: 10px;
+        }
+
+        /* リストスタイル */
+        .note-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .note-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 0.5px solid var(--apple-border);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .note-item:last-child { border-bottom: none; }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 15px;
+            accent-color: var(--apple-yellow);
+        }
+
+        .note-text { flex-grow: 1; font-size: 15px; }
+
+        /* ゴミ箱エリア */
+        .trash-section {
+            opacity: 0.7;
+            border-top: 2px dashed var(--apple-border);
+            padding-top: 20px;
+        }
+
+        .trash-title { color: #ff3b30; font-size: 18px; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
 
-    <h1>📊 リアルタイム情報（OSAKA）</h1>
-
-    <div class="card">
-        <h2>🌦️ 大阪の天気</h2>
-        <p>現在：18°C (快晴) / 降水確率：0%</p>
+<div class="container">
+    <!-- メモ入力 -->
+    <div class="glass-card">
+        <h2>📝 メモを作成</h2>
+        <textarea id="noteInput" placeholder="ここにメモを入力..."></textarea>
+        <div class="btn-row">
+            <button onclick="addNote()">保存</button>
+        </div>
     </div>
 
-    <div class="card">
-        <h2>💵 為替・相場</h2>
-        <p>100ドル ➡️ <span class="value">15,240円</span></p>
-        <p>10,000円 ➡️ <span class="value">473.9人民元</span></p>
+    <!-- メモリスト -->
+    <div class="glass-card">
+        <h2>🗒 メモ一覧</h2>
+        <ul id="noteList" class="note-list"></ul>
+        <div class="btn-row">
+            <button class="delete-btn" onclick="moveToTrash()">選択したものを削除</button>
+        </div>
     </div>
 
-    <div class="card">
-        <h2>₿ 暗号資産・貴金属</h2>
-        <p>ビットコイン：<span class="value">9,850,000円</span></p>
-        <p>金（1g）：<span class="value">13,500円</span></p>
+    <!-- ゴミ箱 -->
+    <div class="glass-card trash-section">
+        <h2 class="trash-title">🗑 ゴミ箱</h2>
+        <ul id="trashList" class="note-list"></ul>
+        <div class="btn-row">
+            <button class="delete-btn" onclick="emptyTrash()">選択したものを完全に消去</button>
+        </div>
     </div>
+</div>
+
+<script>
+    function addNote() {
+        const input = document.getElementById('noteInput');
+        if (!input.value.trim()) return;
+
+        const li = createNoteElement(input.value);
+        document.getElementById('noteList').appendChild(li);
+        input.value = '';
+    }
+
+    function createNoteElement(text) {
+        const li = document.createElement('li');
+        li.className = 'note-item';
+        li.innerHTML = `
+            <input type="checkbox">
+            <span class="note-text">${text}</span>
+        `;
+        return li;
+    }
+
+    function moveToTrash() {
+        const list = document.getElementById('noteList');
+        const trash = document.getElementById('trashList');
+        const items = list.querySelectorAll('.note-item');
+
+        items.forEach(item => {
+            const chk = item.querySelector('input[type="checkbox"]');
+            if (chk.checked) {
+                chk.checked = false; // チェックを外してゴミ箱へ
+                trash.appendChild(item);
+            }
+        });
+    }
+
+    function emptyTrash() {
+        const trash = document.getElementById('trashList');
+        const items = trash.querySelectorAll('.note-item');
+
+        items.forEach(item => {
+            if (item.querySelector('input[type="checkbox"]').checked) {
+                item.remove();
+            }
+        });
+    }
+</script>
 
 </body>
 </html>

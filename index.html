@@ -28,7 +28,6 @@
 
         .container { width: 100%; max-width: 600px; }
 
-        /* カテゴリーナビゲーション */
         .category-nav {
             display: flex;
             justify-content: space-around;
@@ -115,7 +114,6 @@
 <body>
 
 <div class="container">
-    <!-- カテゴリー切り替えタブ -->
     <div class="category-nav">
         <div class="category-item active" onclick="switchCategory('all', this)">すべて</div>
         <div class="category-item" onclick="switchCategory('shopping', this)">🛒 買物</div>
@@ -149,8 +147,8 @@
 </div>
 
 <script>
-    // --- Firebase設定（自分のプロジェクト設定に書き換えてください） ---
-      const firebaseConfig = {
+    // --- Firebase設定 ---
+    const firebaseConfig = {
         apiKey: "AIzaSyAOjNMADm2j7sB1tZTNmwBUcgBx-Le5yfQ",
         authDomain: "memot-355e2.firebaseapp.com",
         projectId: "memot-355e2",
@@ -158,37 +156,31 @@
         messagingSenderId: "721220998358",
         appId: "1:721220998358:web:8003fc01d47ea4d46a2577",
         measurementId: "G-7X3N7XY8WF"
-      };
+    };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // --- ここから下が修正・追加したコードです ---
+    let currentCategory = 'all'; 
+    let unsubscribe = null;
 
-    let currentCategory = 'all'; // 現在選択されているカテゴリーを保持
-
-    // 1. カテゴリーを切り替える関数
+    // 1. カテゴリーを切り替える
     function switchCategory(category, element) {
         currentCategory = category;
         
-        // タブの見た目（青い背景）を切り替える
         document.querySelectorAll('.category-item').forEach(el => el.classList.remove('active'));
         element.classList.add('active');
         
-        // 入力欄のタイトルを更新
         const categoryNames = {all: 'すべて', shopping: '買物', todo: 'ToDo', schedule: 'スケジュール'};
         document.getElementById('editorTitle').innerHTML = `📝 メモを作成 <span>(${categoryNames[category]})</span>`;
         
-        // リストを表示し直す
         loadNotes();
     }
 
-    // 2. データを読み込む関数
-    let unsubscribe = null;
+    // 2. データを読み込む (JS側でフィルタリングしてエラーを防止)
     function loadNotes() {
-        if (unsubscribe) unsubscribe(); // 前の読み込み設定を解除
+        if (unsubscribe) unsubscribe();
 
-        // 全データを日付順に取得
         unsubscribe = db.collection("notes").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
             const noteList = document.getElementById('noteList');
             const trashList = document.getElementById('trashList');
@@ -198,7 +190,7 @@
             snapshot.forEach((doc) => {
                 const data = doc.data();
                 
-                // 【重要】JS側で今選んでいるカテゴリーだけを抽出する
+                // カテゴリーのフィルタリング
                 if (currentCategory !== 'all' && data.category !== currentCategory) {
                     return; 
                 }
@@ -221,113 +213,31 @@
         });
     }
 
-    // 3. 保存する関数
+    // 3. 保存する
     async function saveNote() {
         const input = document.getElementById('noteInput');
         if (!input.value.trim()) return;
 
-        await db.collection("notes").add({
-            text: input.value,
-            status: 'active',
-            category: currentCategory, // 「今開いているタブ」のカテゴリーを付けて保存
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        input.value = '';
-    }
-
-    // 4. ゴミ箱へ移動する関数
-    function updateStatus(newStatus) {
-        const checkboxes = document.querySelectorAll('#noteList input:checked');
-        if (checkboxes.length === 0) {
-            alert("移動するメモを選択してください。");
-            return;
-        }
-        checkboxes.forEach(async (cb) => {
-            await db.collection("notes").doc(cb.dataset.id).update({ status: newStatus });
-        });
-    }
-
-    // 5. 完全に消去する関数
-    function permanentDelete() {
-        const checkboxes = document.querySelectorAll('#trashList input:checked');
-        if (checkboxes.length === 0) {
-            alert("消去するメモを選択してください。");
-            return;
-        }
-        if (!confirm("本当に完全に消去しますか？")) return;
-        
-        checkboxes.forEach(async (cb) => {
-            await db.collection("notes").doc(cb.dataset.id).delete();
-        });
-    }
-
-    // 最初に画面を開いた時にデータを読み込む
-    loadNotes();
-
-
-    }
-
-    // データのリアルタイム読み込み（関数化）
-    let unsubscribe = null;
-    function loadNotes() {
-        if (unsubscribe) unsubscribe();
-
-        let query = db.collection("notes").orderBy("createdAt", "desc");
-        
-        // 「すべて」以外の場合はフィルタリング
-        if (currentCategory !== 'all') {
-            query = query.where("category", "==", currentCategory);
-        }
-
-        unsubscribe = query.onSnapshot((snapshot) => {
-            const noteList = document.getElementById('noteList');
-            const trashList = document.getElementById('trashList');
-            noteList.innerHTML = '';
-            trashList.innerHTML = '';
-
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                const li = document.createElement('li');
-                li.className = 'note-item';
-                
-                li.innerHTML = `
-                    <div class="checkbox-container">
-                        <input type="checkbox" data-id="${doc.id}">
-                    </div>
-                    <div class="note-text">${data.text}</div>
-                `;
-                
-                if (data.status === 'active') {
-                    noteList.appendChild(li);
-                } else {
-                    trashList.appendChild(li);
-                }
+        try {
+            await db.collection("notes").add({
+                text: input.value,
+                status: 'active',
+                category: currentCategory, 
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-        });
+            input.value = '';
+        } catch (e) {
+            console.error("Error saving note: ", e);
+        }
     }
 
-    // 初回読み込み
-    loadNotes();
-
-    // 保存
-    async function saveNote() {
-        const input = document.getElementById('noteInput');
-        if (!input.value.trim()) return;
-
-        await db.collection("notes").add({
-            text: input.value,
-            status: 'active',
-            category: currentCategory, // 現在選択中のカテゴリーを保存
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        input.value = '';
-    }
-
-    // ステータス更新（削除/移動）
+    // 4. ステータス更新（ゴミ箱へ移動）
     function updateStatus(newStatus) {
-        const checkboxes = document.querySelectorAll('#noteList input:checked');
+        const containerId = newStatus === 'trash' ? '#noteList' : '#trashList';
+        const checkboxes = document.querySelectorAll(`${containerId} input:checked`);
+        
         if (checkboxes.length === 0) {
-            alert("移動するメモを選択してください。");
+            alert("メモを選択してください。");
             return;
         }
         checkboxes.forEach(async (cb) => {
@@ -335,7 +245,7 @@
         });
     }
 
-    // 完全削除
+    // 5. 完全に消去
     function permanentDelete() {
         const checkboxes = document.querySelectorAll('#trashList input:checked');
         if (checkboxes.length === 0) {
@@ -348,6 +258,9 @@
             await db.collection("notes").doc(cb.dataset.id).delete();
         });
     }
+
+    // 初回実行
+    loadNotes();
 </script>
 
 </body>
